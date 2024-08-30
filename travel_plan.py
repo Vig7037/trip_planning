@@ -15,61 +15,60 @@ import time
 from dotenv import load_dotenv
 load_dotenv()
 
-## load the Groq API key
-os.environ['NVIDIA_API_KEY']=os.getenv("NVIDIA_API_KEY")
+# Load the Groq API key
+os.environ['NVIDIA_API_KEY'] = os.getenv("NVIDIA_API_KEY")
 
 def vector_embedding():
-
     if "vectors" not in st.session_state:
+        with st.spinner("Setting up the environment..."):
+            st.session_state.embeddings = NVIDIAEmbeddings()
+            st.session_state.loader = PyPDFDirectoryLoader("Trip")  # Data Ingestion
+            st.session_state.docs = st.session_state.loader.load()  # Document Loading
+            st.session_state.text_splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=50)  # Chunk Creation
+            st.session_state.final_documents = st.session_state.text_splitter.split_documents(st.session_state.docs[:30])  # Splitting
+            st.session_state.vectors = FAISS.from_documents(st.session_state.final_documents, st.session_state.embeddings)  # Vector embeddings
+st.set_page_config(page_title="Uttarakhand Traveling", layout="wide", page_icon="🏔️")
+st.title("TRIP PLANNING FOR UTTARAKHAND")
 
-        st.session_state.embeddings=NVIDIAEmbeddings()
-        st.session_state.loader=PyPDFDirectoryLoader("C:\\Users\\ASUS\\Desktop\\Trip") ## Data Ingestion
-        st.session_state.docs=st.session_state.loader.load() ## Document Loading
-        st.session_state.text_splitter=RecursiveCharacterTextSplitter(chunk_size=700,chunk_overlap=50) ## Chunk Creation
-        st.session_state.final_documents=st.session_state.text_splitter.split_documents(st.session_state.docs[:30]) #splitting
-        st.session_state.vectors=FAISS.from_documents(st.session_state.final_documents,st.session_state.embeddings) #vector OpenAI embeddings
-
-
-st.title("Trip Planning for Uttarakhand")
 llm = ChatNVIDIA(model="meta/llama3-70b-instruct")
 
-
-prompt=ChatPromptTemplate.from_template(
-"""
-Give an plan for trip based on the given two things a destination and no of days for trip  is 7.
-Please provide the most accurate response based on the destination
-<context>
-{context}
-<context>
-Destination:{input}
-
-"""
+prompt = ChatPromptTemplate.from_template(
+    """
+    Provide a detailed trip plan for the given destination and number of days.
+    Include information about local cuisine, hotels, and links to important places.
+    End with a cheerful journey message.
+    <context>
+    {context}
+    </context>
+    Destination: {input}
+    Days: {days}
+    """
 )
+maps="https://www.google.com/maps/place/"
+vector_embedding()
 
-c1,c2=st.columns(2)
-with c1:
-    prompt1=st.text_input("Destination for Trip")
-with c2:
-    prompt2=st.text_input("Days for Travelling")
+st.write("Welcome to the Uttarakhand Trip Planner")
+st.image("utta.jpg", caption="Sunrise by the mountains")
+with st.sidebar:
+    st.subheader("Plan Your Trip",divider="rainbow")
+    prompt1 = st.text_input("Enter your Destination", help="Example: Nainital, Mussoorie")
+    prompt2 = st.text_input("Enter Number of Days", help="Example: 5, 7")
+    maps=maps+prompt1
 
+if not prompt1 or not prompt2:
+    st.error("Please fill out both fields.")
+else:
+    with st.spinner("Processing your request..."):
+        document_chain = create_stuff_documents_chain(llm, prompt)
+        retriever = st.session_state.vectors.as_retriever()
+        retrieval_chain = create_retrieval_chain(retriever, document_chain)
+        start = time.process_time()
+        response = retrieval_chain.invoke({'input': prompt1, 'days': prompt2})
+        processing_time = time.process_time() - start
+        st.success(f"Response received in {processing_time:.2f} seconds")
 
-if st.button("First Click on It"):
-    vector_embedding()
-    st.write("Linked")
+        st.write(response['answer'])
+        st.link_button("Click for maps", maps)
 
-import time
-if prompt1:  
-    document_chain=create_stuff_documents_chain(llm,prompt)
-    retriever=st.session_state.vectors.as_retriever()
-    retrieval_chain=create_retrieval_chain(retriever,document_chain)
-    start=time.process_time()
-    response=retrieval_chain.invoke({'input':prompt1})
-    print("Response time :",time.process_time()-start)
-    st.write(response['answer'])
-
-    # With a streamlit expander
-    with st.expander("Document Similarity Search"):
-        # Find the relevant chunks
-        for i, doc in enumerate(response["context"]):
-            st.write(doc.page_content)
-            st.write("--------------------------------")
+if st.button("Clear"):
+    st.session_state.clear()
