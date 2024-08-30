@@ -24,7 +24,7 @@ def vector_embedding():
         with st.spinner("Setting up the environment..."):
             try:
                 st.session_state.embeddings = NVIDIAEmbeddings()
-                st.session_state.loader = PyPDFDirectoryLoader("trip")  # Data Ingestion
+                st.session_state.loader = PyPDFDirectoryLoader("trip/Almora_6Pgs.pdf")  # Data Ingestion
                 docs = []
                 for file_path in st.session_state.loader.file_paths:
                     try:
