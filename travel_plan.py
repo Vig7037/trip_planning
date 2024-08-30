@@ -22,30 +22,13 @@ os.environ['NVIDIA_API_KEY'] = os.getenv("NVIDIA_API_KEY")
 def vector_embedding():
     if "vectors" not in st.session_state:
         with st.spinner("Setting up the environment..."):
-            try:
-                st.session_state.embeddings = NVIDIAEmbeddings()
-                st.session_state.loader = PyPDFDirectoryLoader("trip/Almora_6Pgs.pdf")  # Data Ingestion
-                docs = []
-                for file_path in st.session_state.loader.file_paths:
-                    try:
-                        with open(file_path, "rb") as file:
-                            doc = st.session_state.loader.parser.parse(file)
-                            docs.extend(doc)
-                    except (PdfReadError, PdfStreamError) as e:
-                        st.warning(f"Warning: Could not read file {file_path}. Skipping. Error: {e}")
-                
-                st.session_state.docs = docs
-                st.session_state.text_splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=50)  # Chunk Creation
-                st.session_state.final_documents = st.session_state.text_splitter.split_documents(st.session_state.docs[:30])  # Splitting
-
-                if not st.session_state.final_documents:
-                    st.error("Error: No documents were loaded or split. Please check the document directory.")
-                    return
-
-                st.session_state.vectors = FAISS.from_documents(st.session_state.final_documents, st.session_state.embeddings)  # Vector embeddings
-            except Exception as e:
-                st.error(f"An error occurred during vector embedding: {e}")
-                st.stop()
+            st.session_state.embeddings = NVIDIAEmbeddings()
+            st.session_state.loader = PyPDFDirectoryLoader("C:\\Users\\ASUS\\Desktop\\Trip")  # Data Ingestion
+            st.session_state.docs = st.session_state.loader.load()  # Document Loading
+            st.session_state.text_splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=50)  # Chunk Creation
+            st.session_state.final_documents = st.session_state.text_splitter.split_documents(st.session_state.docs[:30])  # Splitting
+            st.session_state.vectors = FAISS.from_documents(st.session_state.final_documents, st.session_state.embeddings)  # Vector embeddings
+st.set_page_config(page_title="Uttarakhand Traveling", layout="wide", page_icon="🏔️")
 
 # Streamlit page setup
 st.set_page_config(page_title="Uttarakhand Traveling", layout="wide", page_icon="🏔️")
