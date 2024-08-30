@@ -11,12 +11,11 @@ from langchain.chains import create_retrieval_chain
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 import time
-from dotenv import load_dotenv
-from pypdf.errors import PdfReadError
 
+from dotenv import load_dotenv
 load_dotenv()
 
-# Load the NVIDIA API key
+# Load the Groq API key
 os.environ['NVIDIA_API_KEY'] = os.getenv("NVIDIA_API_KEY")
 
 def vector_embedding():
@@ -29,15 +28,10 @@ def vector_embedding():
             st.session_state.final_documents = st.session_state.text_splitter.split_documents(st.session_state.docs[:30])  # Splitting
             st.session_state.vectors = FAISS.from_documents(st.session_state.final_documents, st.session_state.embeddings)  # Vector embeddings
 st.set_page_config(page_title="Uttarakhand Traveling", layout="wide", page_icon="🏔️")
-
-# Streamlit page setup
-st.set_page_config(page_title="Uttarakhand Traveling", layout="wide", page_icon="🏔️")
 st.title("TRIP PLANNING FOR UTTARAKHAND")
 
-# Load language model
 llm = ChatNVIDIA(model="meta/llama3-70b-instruct")
 
-# Define the prompt
 prompt = ChatPromptTemplate.from_template(
     """
     Provide a detailed trip plan for the given destination and number of days.
@@ -50,38 +44,31 @@ prompt = ChatPromptTemplate.from_template(
     Days: {days}
     """
 )
-
-# Initialize vector embeddings
+maps="https://www.google.com/maps/place/"
 vector_embedding()
 
-# Main application interface
 st.write("Welcome to the Uttarakhand Trip Planner")
 st.image("utta.jpg", caption="Sunrise by the mountains")
 with st.sidebar:
-    st.subheader("Plan Your Trip", divider="rainbow")
+    st.subheader("Plan Your Trip",divider="rainbow")
     prompt1 = st.text_input("Enter your Destination", help="Example: Nainital, Mussoorie")
     prompt2 = st.text_input("Enter Number of Days", help="Example: 5, 7")
-    maps = f"https://www.google.com/maps/place/{prompt1}"
+    maps=maps+prompt1
 
 if not prompt1 or not prompt2:
     st.error("Please fill out both fields.")
 else:
     with st.spinner("Processing your request..."):
-        try:
-            document_chain = create_stuff_documents_chain(llm, prompt)
-            retriever = st.session_state.vectors.as_retriever()
-            retrieval_chain = create_retrieval_chain(retriever, document_chain)
-            
-            start = time.process_time()
-            response = retrieval_chain.invoke({'input': prompt1, 'days': prompt2})
-            processing_time = time.process_time() - start
-            
-            st.success(f"Response received in {processing_time:.2f} seconds")
-            st.write(response['answer'])
-            st.button("Click for maps", on_click=lambda: st.markdown(maps, unsafe_allow_html=True))
-        
-        except Exception as e:
-            st.error(f"An error occurred during request processing: {e}")
+        document_chain = create_stuff_documents_chain(llm, prompt)
+        retriever = st.session_state.vectors.as_retriever()
+        retrieval_chain = create_retrieval_chain(retriever, document_chain)
+        start = time.process_time()
+        response = retrieval_chain.invoke({'input': prompt1, 'days': prompt2})
+        processing_time = time.process_time() - start
+        st.success(f"Response received in {processing_time:.2f} seconds")
+
+        st.write(response['answer'])
+        st.link_button("Click for maps", maps)
 
 if st.button("Clear"):
     st.session_state.clear()
