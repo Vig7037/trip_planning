@@ -3,7 +3,7 @@ import os
 import streamlit as st
 import requests
 
-from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings, ChatNVIDIA # type: ignore
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_community.document_loaders import WebBaseLoader
 from langchain.embeddings import OllamaEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -20,14 +20,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Load the NVIDIA API key
-os.environ['NVIDIA_API_KEY'] = os.getenv("NVIDIA_API_KEY")
+os.environ['GOOGLE_API_KEY'] = os.getenv("GOOGLE_API_KEY")
 
 # Vector embedding setup
 def vector_embedding():
     if "vectors" not in st.session_state:
         with st.spinner("Setting up the environment..."):
-            st.session_state.embeddings = NVIDIAEmbeddings()
-            st.session_state.loader = PyPDFDirectoryLoader(r"all-packages-uttrakhand.pdf")
+            st.session_state.embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+            st.session_state.loader = PyPDFDirectoryLoader(r"C:\Users\ASUS\Desktop\Trip")
             st.session_state.docs = st.session_state.loader.load()
             st.session_state.text_splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=50)
             st.session_state.final_documents = st.session_state.text_splitter.split_documents(st.session_state.docs[:30])
@@ -208,9 +208,9 @@ if (val == 1):
         st.error("Please fill out both fields.")
     else:
         with st.spinner("Processing your request..."):
-            llm = ChatNVIDIA(model="meta/llama3-70b-instruct")
+            llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro")
             prompt = ChatPromptTemplate.from_template("""
-                PProvide a detailed trip plan for the given destination, number of days, and budget.
+            Provide a detailed trip plan for the given destination, number of days, and budget.
             Include recommendations for local cuisine, hotels, attractions, and activities within the specified budget.
             <context>{context}</context>
             Destination: {input}
@@ -233,10 +233,19 @@ if (val == 1):
         
             st.success(f"Response received in {processing_time:.2f} seconds")
             st.link_button("Click For Maps",maps,)
-    val = 0
-    
+            binary_content = response['answer'].encode('utf-8')
+        
+            # Add a download button
+            st.download_button(
+            label="📄 Download Trip Plan as Text File",
+            data=binary_content,
+            file_name=f"{prompt1}.txt",
+            mime="text/plain",
+            )
+
     # Clear session state
     if st.button("Clear"):
+        val = 0
         st.session_state.clear()
 
 
